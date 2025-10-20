@@ -50,7 +50,7 @@ export default function CopilotPage() {
 
   return (
     <main className="p-6 max-w-3xl mx-auto space-y-4">
-      <h1 className="text-xl font-semibold">Co-Pilot</h1>
+      <h1 className="text-xl font-bold">Co-Pilot</h1>
 
       <div className="space-y-2">
         {messages.map((m, i) => (
@@ -58,7 +58,7 @@ export default function CopilotPage() {
             key={i}
             className={`rounded-2xl p-3 ${
               m.role === "assistant"
-                ? "bg-muted text-foreground"
+                ? "bg-card text-foreground"
                 : "bg-primary text-primary-foreground ml-8"
             }`}
           >
@@ -69,7 +69,8 @@ export default function CopilotPage() {
 
       <form onSubmit={onSubmit} className="flex gap-2">
         <input
-          className="flex-1 rounded-xl border px-3 py-2 bg-background"
+          className="flex-1 rounded-xl border px-3 py-2 bg-background text-foreground placeholder:text-muted-foreground/90"
+
           placeholder="Ask anything…"
           value={input}
           onChange={(e) => setInput(e.target.value)}
