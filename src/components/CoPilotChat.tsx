@@ -1,87 +1,75 @@
+
 "use client";
 
-import * as React from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-type Msg = { role: "assistant" | "user"; content: string };
+type Msg = { role: "user" | "assistant"; content: string };
 
 export default function CoPilotChat() {
-  const [msgs, setMsgs] = React.useState<Msg[]>([
-    {
-      role: "assistant",
-      content:
-        "Welcome to Wavo. I’ll get you to value in minutes. Skips are safe; I’ll fill gaps as you go.",
-    },
+  const [messages, setMessages] = useState<Msg[]>([
+    { role: "assistant", content: "Hi! I’m your onboarding copilot. How can I help?" },
   ]);
-  const [input, setInput] = React.useState("");
-  const [loading, setLoading] = React.useState(false);
-  const listRef = React.useRef<HTMLDivElement>(null);
+  const [text, setText] = useState("");
 
-  React.useEffect(() => {
-    listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
-  }, [msgs, loading]);
+  async function send(userText: string) {
+    if (!userText.trim()) return;
+    const next: Msg[] = [...messages, { role: "user", content: userText }];
+    setMessages(next);
 
-  async function send() {
-    const text = input.trim();
-    if (!text || loading) return;
-    setInput("");
-    setMsgs((m) => [...m, { role: "user", content: text }]);
-    setLoading(true);
     try {
-      const res = await fetch("/api/copilot", {
+      const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ messages: [...msgs, { role: "user", content: text }] }),
+        body: JSON.stringify({ messages: next }),
       });
-      const data = (await res.json()) as { ok: boolean; reply?: string; error?: string };
-      setMsgs((m) => [
+      if (!res.ok) throw new Error(await res.text());
+      const data = (await res.json()) as { reply: string };
+      setMessages((m) => [...m, { role: "assistant", content: data.reply }]);
+    } catch (e: any) {
+      setMessages((m) => [
         ...m,
-        { role: "assistant", content: data.ok ? data.reply || "" : data.error || "Error" },
+        { role: "assistant", content: "Hmm, I couldn’t reach the chat API." },
       ]);
-    } catch {
-      setMsgs((m) => [...m, { role: "assistant", content: "Network error." }]);
-    } finally {
-      setLoading(false);
     }
   }
 
-  function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      send();
-    }
+  function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const val = text;
+    setText("");
+    void send(val);
   }
 
   return (
-    <div className="flex flex-col h-full">
-      <div ref={listRef} className="flex-1 space-y-2 overflow-auto pr-1">
-        {msgs.map((m, i) => (
+    <div className="copilot-chat flex flex-col gap-3">
+      {/* Messages */}
+      <div className="space-y-2 max-h-[50vh] overflow-auto pr-1">
+        {messages.map((m, i) => (
           <div
             key={i}
-            className={`rounded-2xl p-3 text-sm shadow ${
-              m.role === "assistant" ? "bg-gray-50" : "bg-primary text-primary-foreground ml-10"
+            className={`rounded-2xl p-3 text-[15px] leading-relaxed ${
+              m.role === "assistant"
+                ? "chat-bubble-assistant"
+                : "chat-bubble-user ml-8"
             }`}
           >
             {m.content}
           </div>
         ))}
-        {loading && (
-          <div className="rounded-2xl p-3 text-sm bg-gray-50 shadow">Thinking…</div>
-        )}
       </div>
 
-      <div className="mt-3 flex gap-2">
+      {/* Composer */}
+      <form onSubmit={onSubmit} className="flex gap-2">
         <Input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={onKeyDown}
-          placeholder="Ask anything (e.g., 'Why do you need org name?')"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Ask onboarding to prefill, connect, or explain…"
+          className="flex-1 bg-background text-foreground placeholder:text-muted-foreground/90 focus:outline-none focus:ring-2 focus:ring-ring/40"
         />
-        <Button onClick={send} disabled={loading || !input.trim()}>
-          Send
-        </Button>
-      </div>
+        <Button type="submit">Send</Button>
+      </form>
     </div>
   );
 }

@@ -127,3 +127,12 @@
     border-color: hsl(var(--border)) !important;
   }
 }
+
+/* -- CoPilot chat bubbles: enforce high contrast -- */
+@layer components {
+  .chat-bubble-assistant { @apply bg-card text-foreground border border-border; }
+  .chat-bubble-user { @apply bg-primary text-primary-foreground; }
+
+  /* Make sure inputs are readable inside the chat */
+  .copilot-chat input::placeholder { @apply text-muted-foreground/90; }
+}
