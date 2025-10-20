@@ -1,7 +1,11 @@
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 import { NextResponse } from "next/server";
 export async function GET() {
-  const hasKey = !!process.env.OPENAI_API_KEY;
-  const partial = hasKey ? process.env.OPENAI_API_KEY!.slice(0, 6) + "..." : null;
-  return NextResponse.json({ hasKey, partial });
+  return NextResponse.json({
+    hasKey: !!process.env.OPENAI_API_KEY,
+    nodeVersion: process.version,
+    env: process.env.VERCEL_ENV ?? "unknown",
+  });
 }
