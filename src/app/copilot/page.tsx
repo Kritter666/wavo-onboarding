@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -10,20 +11,16 @@ export default function CopilotPage() {
   ]);
   const [input, setInput] = useState("");
   const boxRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => { boxRef.current?.scrollTo(0, boxRef.current.scrollHeight); }, [messages]);
 
   async function send(userText: string) {
     const next = [...messages, { role: "user", content: userText }];
     setMessages(next);
-
     const res = await fetch("/api/chat", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ messages: next }),
     });
-
-    // read SSE-ish stream and append text
     const reader = res.body?.getReader();
     const decoder = new TextDecoder();
     let assistant = "";
@@ -31,15 +28,11 @@ export default function CopilotPage() {
       const { value, done } = await reader.read();
       if (done) break;
       assistant += decoder.decode(value);
-      setMessages(prev => {
-        const base = prev.filter((_, i) => i < next.length);
-        return [...base, { role: "assistant", content: assistant }];
-      });
+      setMessages(prev => [...prev.slice(0, next.length), { role: "assistant", content: assistant }]);
     }
   }
 
   async function runTool(name: "create_task"|"send_email"|"subscribe_weekly", args: any) {
-    // ping chat route with "tool" payload; it executes server-side and returns result
     const res = await fetch("/api/chat", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -54,7 +47,6 @@ export default function CopilotPage() {
     <main className="min-h-screen p-6 max-w-3xl mx-auto grid gap-4">
       <div className="text-2xl font-semibold">Co-Pilot</div>
 
-      {/* Quick actions */}
       <div className="flex gap-2 flex-wrap">
         <button className="rounded-lg border px-3 py-2 text-sm"
           onClick={() => runTool("create_task", { title: "Follow up with Atlantic A&R" })}
@@ -73,7 +65,6 @@ export default function CopilotPage() {
         >Subscribe weekly</button>
       </div>
 
-      {/* Chat window */}
       <div ref={boxRef} className="rounded-xl border p-3 h-[55vh] overflow-y-auto bg-card">
         {messages.map((m, i) => (
           <div key={i} className="mb-3">
@@ -83,7 +74,6 @@ export default function CopilotPage() {
         ))}
       </div>
 
-      {/* Composer */}
       <form className="flex gap-2" onSubmit={(e)=>{e.preventDefault(); if(input.trim()) { send(input.trim()); setInput(""); }}}>
         <input
           className="flex-1 rounded-lg border px-3 py-2"
