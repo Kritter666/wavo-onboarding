@@ -1,7 +1,5 @@
-
 "use client";
-
-import { useState } from "react";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -9,67 +7,68 @@ type Msg = { role: "user" | "assistant"; content: string };
 
 export default function CoPilotChat() {
   const [messages, setMessages] = useState<Msg[]>([
-    { role: "assistant", content: "Hi! I’m your onboarding copilot. How can I help?" },
+    { role: "assistant", content: "Hi — I’m your onboarding co-pilot. Ask me anything." },
   ]);
   const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
 
-  async function send(userText: string) {
-    if (!userText.trim()) return;
-    const next: Msg[] = [...messages, { role: "user", content: userText }];
+  async function send() {
+    if (!text.trim()) return;
+    setBusy(true);
+    setErr(null);
+    const next = [...messages, { role: "user" as const, content: text }];
     setMessages(next);
-
+    setText("");
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ messages: next }),
       });
-      if (!res.ok) throw new Error(await res.text());
-      const data = (await res.json()) as { reply: string };
-      setMessages((m) => [...m, { role: "assistant", content: data.reply }]);
+      const data = await res.json();
+      if (!res.ok || !data?.ok) throw new Error(data?.error || "Request failed");
+      setMessages([...next, { role: "assistant", content: data.content }]);
     } catch (e: any) {
-      setMessages((m) => [
-        ...m,
-        { role: "assistant", content: "Hmm, I couldn’t reach the chat API." },
-      ]);
+      setErr(e?.message || "Something went wrong");
+    } finally {
+      setBusy(false);
     }
   }
 
-  function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const val = text;
-    setText("");
-    void send(val);
-  }
-
   return (
-    <div className="copilot-chat flex flex-col gap-3">
-      {/* Messages */}
-      <div className="space-y-2 max-h-[50vh] overflow-auto pr-1">
+    <div className="flex flex-col h-full">
+      <div className="flex-1 space-y-2 overflow-auto pr-1">
         {messages.map((m, i) => (
           <div
             key={i}
-            className={`rounded-2xl p-3 text-[15px] leading-relaxed ${
+            className={`rounded-2xl p-3 shadow ${
               m.role === "assistant"
-                ? "chat-bubble-assistant"
-                : "chat-bubble-user ml-8"
+                ? "bg-card text-foreground"
+                : "bg-primary text-primary-foreground ml-8"
             }`}
           >
-            {m.content}
+            <div className="text-[0.95rem] leading-6 font-medium">{m.content}</div>
           </div>
         ))}
+        {err && (
+          <div className="text-sm text-red-600 font-semibold">
+            {err}
+          </div>
+        )}
       </div>
-
-      {/* Composer */}
-      <form onSubmit={onSubmit} className="flex gap-2">
+      <div className="mt-3 flex gap-2">
         <Input
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="Ask onboarding to prefill, connect, or explain…"
-          className="flex-1 bg-background text-foreground placeholder:text-muted-foreground/90 focus:outline-none focus:ring-2 focus:ring-ring/40"
+          placeholder="Type your message…"
+          className="text-foreground"
+          onKeyDown={(e) => { if (e.key === "Enter") send(); }}
         />
-        <Button type="submit">Send</Button>
-      </form>
+        <Button onClick={send} disabled={busy}>
+          {busy ? "…" : "Send"}
+        </Button>
+      </div>
     </div>
   );
 }
