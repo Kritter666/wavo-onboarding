@@ -1,5 +1,6 @@
 "use client";
 
+import CoPilotChat from "@/components/CoPilotChat";
 import React, { useMemo, useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -377,21 +378,9 @@ export default function WavoOnboardingMVP() {
             <TabsTrigger value="activity">Activity</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="chat" className="flex-1">
-            <div className="flex-1 space-y-3 overflow-auto pr-1">
-              {copilot.msgs.map((m, idx) => (
-                <div key={idx} className={`rounded-2xl p-3 shadow ${m.role === "copilot" ? "bg-gray-50" : "bg-black text-white ml-8"}`}>
-                  <div className="text-sm whitespace-pre-wrap">{m.text}</div>
-                  {m.pill && <div className="mt-2"><Badge>{m.pill}</Badge></div>}
-                </div>
-              ))}
-              <div className="text-sm text-gray-700">{copilot.script({ org, team, user, step })}</div>
-            </div>
-            <div className="mt-3 flex gap-2">
-              <Button variant="secondary" onClick={() => copilot.say(copilot.script({ org, team, user, step }))}>Nudge</Button>
-              <Button variant="ghost" onClick={() => { copilot.say("Skipping ahead. I’ll fill gaps as we go."); setStep(nextStep(step)); }}><SkipForward className="w-4 h-4 mr-2"/>Skip</Button>
-            </div>
-          </TabsContent>
+<TabsContent value="chat" className="flex-1">
+  <CoPilotChat />
+</TabsContent>
 
           <TabsContent value="activity" className="flex-1">
             <div className="space-y-2 overflow-auto pr-1">
