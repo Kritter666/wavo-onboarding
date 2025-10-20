@@ -1,86 +1,87 @@
-
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
 
-type Msg = { role: "user" | "assistant"; content: string };
+type Msg = { role: "assistant" | "user"; content: string };
 
 export default function CoPilotChat() {
-  const [msgs, setMsgs] = useState<Msg[]>([
-    { role: "assistant", content: "Welcome to Wavo. I’ll get you to value in minutes. Skips are safe; I’ll fill gaps as you go." },
+  const [msgs, setMsgs] = React.useState<Msg[]>([
+    {
+      role: "assistant",
+      content:
+        "Welcome to Wavo. I’ll get you to value in minutes. Skips are safe; I’ll fill gaps as you go.",
+    },
   ]);
-  const [pending, setPending] = useState(false);
-  const [text, setText] = useState("");
-  const endRef = useRef<HTMLDivElement | null>(null);
+  const [input, setInput] = React.useState("");
+  const [loading, setLoading] = React.useState(false);
+  const listRef = React.useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [msgs, pending]);
+  React.useEffect(() => {
+    listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
+  }, [msgs, loading]);
 
-  async function sendMessage(prompt?: string) {
-    const content = (prompt ?? text).trim();
-    if (!content) return;
-    setText("");
-    const next = [...msgs, { role: "user", content }];
-    setMsgs(next);
-    setPending(true);
+  async function send() {
+    const text = input.trim();
+    if (!text || loading) return;
+    setInput("");
+    setMsgs((m) => [...m, { role: "user", content: text }]);
+    setLoading(true);
     try {
       const res = await fetch("/api/copilot", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ messages: next }),
+        body: JSON.stringify({ messages: [...msgs, { role: "user", content: text }] }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || "Request failed");
-      setMsgs((m) => [...m, { role: "assistant", content: data.reply }]);
-    } catch (e: any) {
+      const data = (await res.json()) as { ok: boolean; reply?: string; error?: string };
       setMsgs((m) => [
         ...m,
-        { role: "assistant", content: "Hmm, I had trouble reaching the assistant. Try again." },
+        { role: "assistant", content: data.ok ? data.reply || "" : data.error || "Error" },
       ]);
+    } catch {
+      setMsgs((m) => [...m, { role: "assistant", content: "Network error." }]);
     } finally {
-      setPending(false);
+      setLoading(false);
+    }
+  }
+
+  function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      send();
     }
   }
 
   return (
-    <Card className="h-[520px] flex flex-col">
-      <CardContent className="p-3 flex-1 overflow-auto space-y-2">
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Button size="sm" variant="secondary" onClick={() => sendMessage("Can I skip some fields?")}>
-            Skip-friendly
-          </Button>
-          <span>Ask me for a nudge or type below.</span>
-        </div>
-
+    <div className="flex flex-col h-full">
+      <div ref={listRef} className="flex-1 space-y-2 overflow-auto pr-1">
         {msgs.map((m, i) => (
           <div
             key={i}
-            className={`text-sm leading-relaxed ${m.role === "user" ? "text-foreground" : "text-muted-foreground"}`}
+            className={`rounded-2xl p-3 text-sm shadow ${
+              m.role === "assistant" ? "bg-gray-50" : "bg-primary text-primary-foreground ml-10"
+            }`}
           >
-            <span className="font-medium">{m.role === "user" ? "You: " : "Co-Pilot: "}</span>
             {m.content}
           </div>
         ))}
+        {loading && (
+          <div className="rounded-2xl p-3 text-sm bg-gray-50 shadow">Thinking…</div>
+        )}
+      </div>
 
-        {pending && <div className="text-xs text-muted-foreground">Thinking…</div>}
-        <div ref={endRef} />
-      </CardContent>
-
-      <div className="p-3 border-t grid grid-cols-[1fr_auto] gap-2">
+      <div className="mt-3 flex gap-2">
         <Input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={onKeyDown}
           placeholder="Ask anything (e.g., 'Why do you need org name?')"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && sendMessage()}
         />
-        <Button onClick={() => sendMessage()} disabled={pending}>
+        <Button onClick={send} disabled={loading || !input.trim()}>
           Send
         </Button>
       </div>
-    </Card>
+    </div>
   );
 }

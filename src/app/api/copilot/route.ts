@@ -1,36 +1,28 @@
 import { NextRequest } from "next/server";
 
-// Simple health check so you can open it in the browser.
-export async function GET() {
-  return new Response(JSON.stringify({ ok: true, env: !!process.env.OPENAI_API_KEY }), {
-    status: 200,
-    headers: { "content-type": "application/json" },
-  });
-}
+export const runtime = "edge";
 
-// Minimal POST handler your UI can call.
-// It just echos the last user message for now (no OpenAI dependency).
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json().catch(() => ({}));
-    const lastUser =
-      Array.isArray(body?.messages)
-        ? [...body.messages].reverse().find((m) => m?.role === "user")?.content ?? ""
-        : "";
+    const { messages } = (await req.json()) as {
+      messages: { role: "user" | "assistant"; content: string }[];
+    };
 
-    const reply = lastUser
-      ? `You said: "${lastUser}". Co-Pilot is online.`
-      : "Co-Pilot is online. Say something!";
+    // ---- Replace this stub with your real OpenAI call when ready ----
+    const last = messages?.slice(-1)[0]?.content ?? "";
+    const reply =
+      last.trim() === ""
+        ? "Ask me anything about onboarding. I can nudge you step-by-step."
+        : `You said: “${last}”. For onboarding, I can help fill Org, Team, User, Connectors, and more.`;
 
     return new Response(JSON.stringify({ ok: true, reply }), {
+      headers: { "content-type": "application/json" },
       status: 200,
-      headers: { "content-type": "application/json" },
     });
-  } catch (err: any) {
-    console.error("COPILOT_ERROR", err?.message || err);
-    return new Response(JSON.stringify({ ok: false, error: "handler_failed" }), {
-      status: 500,
-      headers: { "content-type": "application/json" },
-    });
+  } catch (e: any) {
+    return new Response(
+      JSON.stringify({ ok: false, error: e?.message || "Bad request" }),
+      { headers: { "content-type": "application/json" }, status: 400 },
+    );
   }
 }
